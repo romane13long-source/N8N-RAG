@@ -7,6 +7,7 @@ Workflow n8n qui repère automatiquement les offres VIE liées à la data sur le
 - [`n8n/workflows/vie-mvp.workflow.ts`](n8n/workflows/vie-mvp.workflow.ts) — le workflow n8n (format TypeScript SDK), exporté depuis n8n Cloud.
 - [`specs/specs-cible-vie.md`](specs/specs-cible-vie.md) — les specs complètes du projet (objectif, critères, contraintes, points ouverts).
 - [`specs/specs-mvp-vie.md`](specs/specs-mvp-vie.md) — description courte de ce que fait la version actuelle du workflow.
+- [`skills/`](skills/) — skills Claude Code utilisés pendant la construction de ce projet ([`interview-specs`](skills/interview-specs/SKILL.md), [`hostile-review`](skills/hostile-review/SKILL.md), [`doubt-driven-development`](skills/doubt-driven-development/SKILL.md)). Version à jour dans [claude-skills](https://github.com/romane13long-source/claude-skills).
 
 ## Ce que fait le workflow aujourd'hui
 

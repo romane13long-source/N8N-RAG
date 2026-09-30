@@ -1,0 +1,12 @@
+{
+  "env": "prod",
+  "localDir": "n8n",
+  "projectId": "goZplT2suE4r2wQQ",
+  "projectName": "romane   <romane13.long@gmail.com>",
+  "references": [
+    {
+      "name": "Workflow Examples Ref",
+      "builtin": "examples"
+    }
+  ]
+}

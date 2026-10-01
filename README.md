@@ -30,3 +30,34 @@ La source (API VIE de Business France) n'est pas documentée officiellement ; au
 - Une clé `X-API-KEY` pour l'API Business France (récupérable depuis l'onglet Network du navigateur sur mon-vie-via.businessfrance.fr).
 - Un Google Sheet avec les colonnes `offre_id, source, date_detection, titre, entreprise, pays, lieu, contrat, url, score, raison, statut` (+ colonnes réservées pour les phases futures).
 - Une credential Google Gemini (API key).
+
+---
+
+# RAG Livre — Pipeline RAG hybride (projet de cours)
+
+Deuxième workflow de ce dépôt : un pipeline RAG (Retrieval-Augmented Generation) complet sur un livre PDF, avec recherche hybride (vecteur + mots-clés) et reranking.
+
+- [`n8n/workflows/RAG Livre v24.workflow.ts`](n8n/workflows/RAG%20Livre%20v24.workflow.ts) — version finale.
+
+## Architecture
+
+**Ingestion** (formulaire d'upload PDF) :
+Upload → Extraction texte → Nettoyage/structuration → Chunking sémantique (découpe par section/paragraphe, chevauchement) → Extraction de mots-clés par chunk (Augmentation) → Embedding Gemini → Insertion Postgres (Supabase), mots-clés stockés en metadata pour la recherche plein texte.
+
+**Chat / Answering**, construit nœud par nœud (pas de nœud "AI Agent" natif, pour que chaque étape soit explicite) :
+
+1. **Contexte** — récupère l'historique de la conversation (Postgres).
+2. **Routing** — Gemini reformule la question en requête de recherche autonome à partir du contexte (résout les pronoms/références implicites).
+3. **Search** — recherche en parallèle par similarité vectorielle (nœud natif Supabase Vector Store) et par mots-clés (`ts_rank` Postgres).
+4. **Reranking** — fusion des deux classements par Reciprocal Rank Fusion (RRF, k=60) : un passage bien classé dans les deux méthodes remonte en tête.
+5. **Generation** — Gemini répond à partir des meilleurs passages + historique, puis l'échange est sauvegardé.
+
+## Modèles utilisés
+
+- Chat/Routing/Génération : `gemini-flash-lite-latest`
+- Embeddings : `gemini-embedding-2` (3072 dimensions)
+
+## Points de vigilance
+
+- Le quota gratuit de l'API Gemini est limité par minute : des tests rapprochés peuvent déclencher des erreurs 429 ("too many requests"), pas un bug du workflow.
+- Nécessite une table `documents` (colonnes `content`, `metadata jsonb`, `embedding vector(3072)`, `content_tsv` généré à partir de `content` + `metadata->>'keywords'`) et une table `chat_messages` (historique de conversation) dans Supabase.

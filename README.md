@@ -37,7 +37,7 @@ La source (API VIE de Business France) n'est pas documentée officiellement ; au
 
 Deuxième workflow de ce dépôt : un pipeline RAG (Retrieval-Augmented Generation) complet sur un livre PDF, avec recherche hybride (vecteur + mots-clés) et reranking.
 
-- [`n8n/workflows/RAG Livre v24.workflow.ts`](n8n/workflows/RAG%20Livre%20v24.workflow.ts) — version finale.
+- [`n8n/workflows/RAG Livre v22.workflow.ts`](n8n/workflows/RAG%20Livre%20v22.workflow.ts) — version finale.
 
 ## Architecture
 

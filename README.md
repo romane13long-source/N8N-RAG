@@ -33,11 +33,11 @@ La source (API VIE de Business France) n'est pas documentée officiellement ; au
 
 ---
 
-# RAG Livre — Pipeline RAG hybride (projet de cours)
+# RAG Mental Health — Pipeline RAG hybride (projet de cours)
 
-Deuxième workflow de ce dépôt : un pipeline RAG (Retrieval-Augmented Generation) complet sur un livre PDF, avec recherche hybride (vecteur + mots-clés) et reranking.
+Deuxième workflow de ce dépôt : un pipeline RAG (Retrieval-Augmented Generation) complet sur un corpus santé mentale, avec recherche hybride (vecteur + mots-clés) et reranking. Anciennement "RAG Livre".
 
-- [`n8n/workflows/RAG Livre v22.workflow.ts`](n8n/workflows/RAG%20Livre%20v22.workflow.ts) — version finale.
+- [`n8n/workflows/RAG Mental Health.workflow.ts`](n8n/workflows/RAG%20Mental%20Health.workflow.ts) — version finale.
 
 ## Architecture
 
@@ -61,3 +61,7 @@ Upload → Extraction texte → Nettoyage/structuration → Chunking sémantique
 
 - Le quota gratuit de l'API Gemini est limité par minute : des tests rapprochés peuvent déclencher des erreurs 429 ("too many requests"), pas un bug du workflow.
 - Nécessite une table `documents` (colonnes `content`, `metadata jsonb`, `embedding vector(3072)`, `content_tsv` généré à partir de `content` + `metadata->>'keywords'`) et une table `chat_messages` (historique de conversation) dans Supabase.
+
+## Bug corrigé (v24 → RAG Mental Health)
+
+Le chat renvoyait systématiquement `<Empty response>` malgré une exécution 100% réussie (aucune erreur sur aucun nœud). Cause : le nœud final "Préparer Réponse Finale" lisait `$json.answerText`, mais `$json` provenait du nœud juste avant, "Sauvegarder Échange" (un `INSERT` Postgres sans `RETURNING`), qui ne renvoie pas ce champ — `output` était donc toujours `undefined`. Correctif : référence explicite à `$('Extraire Réponse Finale').item.json.answerText`.

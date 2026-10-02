@@ -1,4 +1,4 @@
-const embeddings_Gemini_Recherche = embedding({ type: '@n8n/n8n-nodes-langchain.embeddingsGoogleGemini', version: 1, config: { name: 'Embeddings Gemini (Recherche)', parameters: { modelName: 'models/gemini-embedding-2' }, credentials: { googlePalmApi: newCredential('Google Gemini(PaLM) Api account', 'oewWUKLTw4zHgfP9') }, position: [200, 520] } });
+const embeddings_Gemini_Recherche = embedding({ type: '@n8n/n8n-nodes-langchain.embeddingsGoogleGemini', version: 1, config: { name: 'Embeddings Gemini (Recherche)', parameters: { modelName: 'models/gemini-embedding-2' }, credentials: { googlePalmApi: newCredential('Google Gemini(PaLM) Api account', 'oewWUKLTw4zHgfP9') }, position: [208, 528] } });
 
 const upload_Livre_PDF = trigger({
   type: 'n8n-nodes-base.formTrigger',
@@ -63,7 +63,7 @@ const ins_rer_Document_Hybride = node({
 const recevoir_Message = trigger({
   type: '@n8n/n8n-nodes-langchain.chatTrigger',
   version: 1.5,
-  config: { name: 'Recevoir Message', parameters: { availableInChat: true, agentName: 'RAG Livre', agentDescription: 'Pose des questions sur les documents ingérés via la chaîne Upload Livre PDF ci-dessus.', options: { responseMode: 'lastNode' } }, position: [-1120, 544], webhookId: '518110ef-e6ea-43c7-8875-af3f9fe77fb2', notes: 'responseMode "lastNode" : le dernier nœud exécuté doit renvoyer { output: "<texte>" }.', notesInFlow: true }
+  config: { name: 'Recevoir Message', parameters: { availableInChat: true, agentName: 'RAG Livre', agentDescription: 'Pose des questions sur les documents ingérés via la chaîne Upload Livre PDF ci-dessus.', options: { responseMode: 'lastNode' } }, position: [-1120, 544], webhookId: '280d912c-cc7c-46b7-a5f8-9097b3d69a47', notes: 'responseMode "lastNode" : le dernier nœud exécuté doit renvoyer { output: "<texte>" }.', notesInFlow: true }
 });
 
 const r_cup_rer_Contexte = node({
@@ -93,7 +93,7 @@ const extraire_Requ_te_Reformul_e = node({
 const rechercher_Vecteurs = node({
   type: '@n8n/n8n-nodes-langchain.vectorStoreSupabase',
   version: 1.3,
-  config: { name: 'Rechercher Vecteurs', parameters: { mode: 'load', tableName: { __rl: true, mode: 'id', value: 'documents' }, prompt: expr('{{ $json.searchQuery }}'), topK: 20, options: {} }, credentials: { supabaseApi: newCredential('Supabase account', 'uvMCNf5EnnE63a6y') }, position: [128, 288], notes: 'Étape "Search" (moitié vecteur) : nœud natif, calcule l\'embedding de searchQuery ET fait la recherche de similarité, en un seul nœud, sans HTTP Request.', notesInFlow: true, subnodes: { embedding: embeddings_Gemini_Recherche } }
+  config: { name: 'Rechercher Vecteurs', parameters: { mode: 'load', tableName: { __rl: true, mode: 'id', value: 'documents' }, prompt: expr('{{ $json.searchQuery }}'), topK: 20, options: {} }, credentials: { supabaseApi: newCredential('Supabase account', 'uvMCNf5EnnE63a6y') }, position: [128, 288], notes: 'Étape "Search" (moitié vecteur) : nœud natif, calcule l\'embedding de searchQuery ET fait la recherche de similarité, en un seul nœud, sans HTTP Request. Retry ajouté pour absorber les 429 ("too many requests") transitoires de l\'API Gemini.', notesInFlow: true, retryOnFail: true, maxTries: 3, waitBetweenTries: 8000, subnodes: { embedding: embeddings_Gemini_Recherche } }
 });
 
 const tagger_R_sultats_Vecteurs = node({
@@ -110,13 +110,13 @@ const fusionner_R_sultats = merge({
 const tagger_R_sultats_Mots_Cl_s = node({
   type: 'n8n-nodes-base.code',
   version: 2,
-  config: { name: 'Tagger Résultats Mots-Clés', parameters: { jsCode: 'const items = $input.all();\nreturn items.map((item, i) => ({ json: {\n  content: item.json.content,\n  metadata: item.json.metadata,\n  source: \'keyword\',\n  rank: i + 1\n}, pairedItem: i }));' }, position: [480, 688], notesInFlow: true }
+  config: { name: 'Tagger Résultats Mots-Clés', parameters: { jsCode: '// alwaysOutputData sur "Rechercher Mots-Clés" peut produire un item vide sans `content`\n// (aucune correspondance mots-clés) : on le filtre pour ne pas polluer le reranking.\nconst items = $input.all().filter(item => item.json && item.json.content);\nreturn items.map((item, i) => ({ json: {\n  content: item.json.content,\n  metadata: item.json.metadata,\n  source: \'keyword\',\n  rank: i + 1\n}, pairedItem: i }));' }, position: [480, 688], notesInFlow: true }
 });
 
 const rechercher_Mots_Cl_s = node({
   type: 'n8n-nodes-base.postgres',
   version: 2.7,
-  config: { name: 'Rechercher Mots-Clés', parameters: { operation: 'executeQuery', query: 'select content, metadata\nfrom documents\nwhere $1 <> \'\' and content_tsv @@ websearch_to_tsquery(\'french\', $1)\norder by ts_rank(content_tsv, websearch_to_tsquery(\'french\', $1)) desc\nlimit 20;', options: { queryReplacement: expr('{{ $(\'Extraire Requête Reformulée\').item.json.searchQuery }}') } }, credentials: { postgres: newCredential('Postgres account', 'BSGtZRDD9rj4tTnF') }, position: [192, 688], notes: 'Étape "Search" (moitié mots-clés), branche en parallèle de la recherche vectorielle. Référence "Extraire Requête Reformulée" directement (pas $json) pour ne tourner qu\'une fois, peu importe où ce nœud est branché.', notesInFlow: true }
+  config: { name: 'Rechercher Mots-Clés', parameters: { operation: 'executeQuery', query: 'select content, metadata\nfrom documents\nwhere $1 <> \'\' and content_tsv @@ websearch_to_tsquery(\'french\', $1)\norder by ts_rank(content_tsv, websearch_to_tsquery(\'french\', $1)) desc\nlimit 20;', options: { queryReplacement: expr('{{ $(\'Extraire Requête Reformulée\').item.json.searchQuery }}') } }, credentials: { postgres: newCredential('Postgres account', 'BSGtZRDD9rj4tTnF') }, position: [192, 688], notes: 'Étape "Search" (moitié mots-clés), branche en parallèle de la recherche vectorielle. Référence "Extraire Requête Reformulée" directement (pas $json) pour ne tourner qu\'une fois, peu importe où ce nœud est branché. alwaysOutputData=true : 0 correspondance mots-clés ne doit pas arrêter cette branche (même bug que "Récupérer Contexte").', notesInFlow: true, alwaysOutputData: true }
 });
 
 const reranking_RRF = node({
@@ -152,10 +152,10 @@ const sauvegarder_change = node({
 const pr_parer_R_ponse_Finale = node({
   type: 'n8n-nodes-base.code',
   version: 2,
-  config: { name: 'Préparer Réponse Finale', parameters: { mode: 'runOnceForEachItem', jsCode: 'return { json: { output: $json.answerText } };' }, position: [2176, 544], notes: 'Format attendu par le Chat Trigger en mode "lastNode" : { output: \'<texte affiché dans le chat>\' }.', notesInFlow: true }
+  config: { name: 'Préparer Réponse Finale', parameters: { mode: 'runOnceForEachItem', jsCode: 'return { json: { output: $(\'Extraire Réponse Finale\').item.json.answerText } };' }, position: [2176, 544], notes: 'Format attendu par le Chat Trigger en mode "lastNode" : { output: \'<texte affiché dans le chat>\' }. BUG CORRIGÉ : lisait $json.answerText, mais $json ici vient de "Sauvegarder Échange" (nœud Postgres juste avant), qui ne renvoie pas ce champ (INSERT sans RETURNING) — output était donc toujours undefined, d\'où "<Empty response>" dans le chat malgré une exécution 100% réussie sur tous les nœuds. Référence explicite au nœud "Extraire Réponse Finale" qui porte réellement answerText.', notesInFlow: true }
 });
 
-const wf = workflow('', 'RAG Livre v22', { executionOrder: 'v1', description: 'Identique à v21, fix "Paired item data for item from node Reranking (RRF) is unavailable" : pairedItem explicite sur Tagger Résultats Vecteurs, Tagger Résultats Mots-Clés et Reranking (RRF).' });
+const wf = workflow('', 'RAG Mental Health', { executionOrder: 'v1', description: 'Pipeline RAG hybride (recherche vecteur + mots-clés, reranking RRF) sur un corpus santé mentale. Basé sur RAG Livre, avec le bug "<Empty response>" corrigé : "Préparer Réponse Finale" référence désormais explicitement "Extraire Réponse Finale" au lieu de $json (qui venait du nœud Postgres "Sauvegarder Échange" et ne portait pas answerText).' });
 
 export default wf
   .add(upload_Livre_PDF)
